@@ -1,0 +1,4 @@
+*.json
+authorized_hosts
+*.crt
+*.key

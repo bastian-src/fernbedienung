@@ -1,0 +1,9 @@
+services:
+  fernbedienung:
+    build: .
+    image: fernbedienung:latest
+    ports:
+      - "9595:9595"
+    volumes:
+      - "./authorized_hosts:/work/authorized_hosts:ro"
+    command: "python3 server.py"
