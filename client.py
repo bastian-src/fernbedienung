@@ -7,6 +7,7 @@ from pynput.keyboard import Controller
 import signal
 import sys
 import ssl
+import time
 
 
 ASCII_ART = '''
@@ -156,6 +157,7 @@ def simulate_keypress(keyboard_controller, key_str):
         else:
             key_obj = key_str  # regular characters
         keyboard_controller.press(key_obj)
+        time.sleep(0.05)
         keyboard_controller.release(key_obj)
     except Exception as e:
         print(f"Error simulating keypress for '{key_str}': {e}")
