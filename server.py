@@ -8,11 +8,11 @@ import threading
 import argparse
 
 
-ASCII_ART = '''
-         ____             __          ___                        
+ASCII_ART = r"""
+         ____             __          ___
         / __/__ _______  / /  ___ ___/ (_)__ ___  __ _____  ___ _
        / _// -_) __/ _ \/ _ \/ -_) _  / / -_) _ \/ // / _ \/ _ `/
-      /_/  \__/_/ /_//_/_.__/\__/\_,_/_/\__/_//_/\_,_/_//_/\_, / 
+      /_/  \__/_/ /_//_/_.__/\__/\_,_/_/\__/_//_/\_,_/_//_/\_, /
                                                           /___/
 :-------------------------------------::--::::+=-----------------------:
 ::-::--------------------------------::::------=+:---------------------::
@@ -55,7 +55,7 @@ ASCII_ART = '''
 ::::::+---:-#%%%@@@@%#++++***=--====++++*+==+=+%@@@@@@##**#****@@@@%#+===
 ::::::=+:-:-*%##***##+---*++*+====+==++++*+===++#@@@@@%****#***@@@@@%++++
 =:::::-+==++==*####*-:---****+===========*+++=++=%@@@@@#*******@@@@%#++++
-'''
+"""
 
 # --------- DEFAULTS ---------
 DEFAULT_SERVER_CERT_FILE = "./server.crt"
@@ -75,15 +75,12 @@ PROTOCOL_VALID_KEYS = [
     "Key.right",
     "Key.up",
     "Key.down",
-
     "w",
     "a",
     "s",
     "d",
-
     "q",
     "e",
-
     "r",
     "f",
 ]
@@ -102,7 +99,7 @@ def handle_sigint(signum, frame):
 
 def read_auths(file_name: str) -> list[str]:
     auths = []
-    with open(file_name, 'r') as file:
+    with open(file_name, "r") as file:
         for line in file.readlines():
             auths.append(line.strip())
     return auths
@@ -133,8 +130,6 @@ def accept_and_authenticate(server_socket, ssl_context, auths):
 
 
 def client_thread(client_socket, addr, client_type):
-    global receiver_clients
-
     print(f"[✓] <{addr}> Connected as {client_type}")
 
     if client_type == PROTOCOL_RESPONSE_RECEIVER:
@@ -167,7 +162,10 @@ def client_thread(client_socket, addr, client_type):
     finally:
         print(f"[x] <{addr}> Disconnected")
         with clients_lock:
-            if client_type == PROTOCOL_RESPONSE_RECEIVER and client_socket in receiver_clients:
+            if (
+                client_type == PROTOCOL_RESPONSE_RECEIVER
+                and client_socket in receiver_clients
+            ):
                 receiver_clients.remove(client_socket)
         client_socket.close()
 
@@ -176,20 +174,24 @@ def run(args):
     auths = read_auths(args.auth_file_path)
 
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_cert_chain(certfile=args.server_cert_file, keyfile=args.server_key_file)
+    context.load_cert_chain(
+        certfile=args.server_cert_file, keyfile=args.server_key_file
+    )
 
     server_socket = socket.socket()
-    server_socket.bind(('0.0.0.0', args.server_port))
+    server_socket.bind(("0.0.0.0", args.server_port))
     server_socket.listen(args.max_clients)
 
     while True:
         try:
-            client_socket, addr, client_type = accept_and_authenticate(server_socket, context, auths)
+            client_socket, addr, client_type = accept_and_authenticate(
+                server_socket, context, auths
+            )
 
             thread = threading.Thread(
                 target=client_thread,
                 args=(client_socket, addr, client_type),
-                daemon=True
+                daemon=True,
             )
             thread.start()
         except Exception as e:
@@ -197,26 +199,38 @@ def run(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="fernbedienung: TCP Key Event Sender/Receiver SERVER")
-    parser.add_argument(
-        "--server-port", type=int, default=DEFAULT_PORT,
-        help=f"Server port. Default is {DEFAULT_PORT}."
+    parser = argparse.ArgumentParser(
+        description="fernbedienung: TCP Key Event Sender/Receiver SERVER"
     )
     parser.add_argument(
-        "--auth-file-path", type=str, default=DEFAULT_AUTH_FILE,
-        help="List of valid client authentications."
+        "--server-port",
+        type=int,
+        default=DEFAULT_PORT,
+        help=f"Server port. Default is {DEFAULT_PORT}.",
     )
     parser.add_argument(
-        "--server-cert-file", type=str, default=DEFAULT_SERVER_CERT_FILE,
-        help=f"File path to the server TLS certificate. Default is {DEFAULT_SERVER_CERT_FILE}."
+        "--auth-file-path",
+        type=str,
+        default=DEFAULT_AUTH_FILE,
+        help="List of valid client authentications.",
     )
     parser.add_argument(
-        "--server-key-file", type=str, default=DEFAULT_SERVER_KEY_FILE,
-        help=f"File path to the server TLS certificate. Default is {DEFAULT_SERVER_KEY_FILE}."
+        "--server-cert-file",
+        type=str,
+        default=DEFAULT_SERVER_CERT_FILE,
+        help=f"File path to the server TLS certificate. Default is {DEFAULT_SERVER_CERT_FILE}.",
     )
     parser.add_argument(
-        "--max-clients", type=int, default=DEFAULT_MAX_CLIENTS,
-        help=f"Number of simultaneous client connections. Default is {DEFAULT_MAX_CLIENTS}."
+        "--server-key-file",
+        type=str,
+        default=DEFAULT_SERVER_KEY_FILE,
+        help=f"File path to the server TLS certificate. Default is {DEFAULT_SERVER_KEY_FILE}.",
+    )
+    parser.add_argument(
+        "--max-clients",
+        type=int,
+        default=DEFAULT_MAX_CLIENTS,
+        help=f"Number of simultaneous client connections. Default is {DEFAULT_MAX_CLIENTS}.",
     )
     args = parser.parse_args()
     signal.signal(signal.SIGINT, handle_sigint)
