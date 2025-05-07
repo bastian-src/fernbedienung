@@ -6,6 +6,7 @@ import sys
 import ssl
 import threading
 import argparse
+from datetime import datetime
 
 
 ASCII_ART = r"""
@@ -70,20 +71,6 @@ PROTOCOL_RESPONSE_OK = "OK"
 PROTOCOL_RESPONSE_NOT_OK = "NO NO!"
 PROTOCOL_RESPONSE_SENDER = "I'm a sender"
 PROTOCOL_RESPONSE_RECEIVER = "I'm a receiver"
-PROTOCOL_VALID_KEYS = [
-    "Key.left",
-    "Key.right",
-    "Key.up",
-    "Key.down",
-    "w",
-    "a",
-    "s",
-    "d",
-    "q",
-    "e",
-    "r",
-    "f",
-]
 # ----------------------------
 
 # --------- GLOBALS ---------
@@ -92,8 +79,13 @@ receiver_clients = []
 # ----------------------------
 
 
+def print_timed(msg: str, end="\n\r"):
+    time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    print(f"[{time_str}]{msg}", end=end)
+
+
 def handle_sigint(signum, frame):
-    print("\nCaught Ctrl+C! Cleaning up...")
+    print_timed("\nCaught Ctrl+C! Cleaning up...")
     sys.exit(0)
 
 
@@ -107,22 +99,22 @@ def read_auths(file_name: str) -> list[str]:
 
 def accept_and_authenticate(server_socket, ssl_context, auths):
     newsocket, addr = server_socket.accept()
-    print(f"[ ] <{addr}> Attempt TLS handshake with new client", end="\r")
+    print_timed(f"[ ] <{addr}> Attempt TLS handshake with new client", end="\r")
     wrapped_client = ssl_context.wrap_socket(newsocket, server_side=True)
-    print("[✓]")
-    print(f"[ ] <{addr}> Attempt client authorization", end="\r")
+    print_timed("[✓]")
+    print_timed(f"[ ] <{addr}> Attempt client authorization", end="\r")
     auth_message = wrapped_client.recv(1024).decode().strip()
     if auth_message not in auths:
         wrapped_client.send(PROTOCOL_RESPONSE_NOT_OK.encode())
-        print("[✘]")
+        print_timed("[✘]")
         raise Exception(f"Error: <{addr}> No valid client authentication")
-    print("[✓]")
+    print_timed("[✓]")
     wrapped_client.send(PROTOCOL_RESPONSE_OK.encode())
 
-    print(f"[ ] <{addr}> Attempt determining client type", end="\r")
+    print_timed(f"[ ] <{addr}> Attempt determining client type", end="\r")
     type_message = wrapped_client.recv(1024).decode().strip()
     if type_message not in [PROTOCOL_RESPONSE_SENDER, PROTOCOL_RESPONSE_RECEIVER]:
-        print("[✘]")
+        print_timed("[✘]")
         raise Exception(f"Error: <{addr}> No valid client type transmitted")
     wrapped_client.send(PROTOCOL_RESPONSE_OK.encode())
 
@@ -130,7 +122,7 @@ def accept_and_authenticate(server_socket, ssl_context, auths):
 
 
 def client_thread(client_socket, addr, client_type):
-    print(f"[✓] <{addr}> Connected as {client_type}")
+    print_timed(f"[✓] <{addr}> Connected as {client_type}")
 
     if client_type == PROTOCOL_RESPONSE_RECEIVER:
         with clients_lock:
@@ -144,23 +136,22 @@ def client_thread(client_socket, addr, client_type):
 
             if client_type == PROTOCOL_RESPONSE_SENDER:
                 key_str = data.decode().strip()
-                print(f"[>] <{addr}: {key_str}")
-                if key_str in PROTOCOL_VALID_KEYS:
-                    with clients_lock:
-                        disconnected = []
-                        for r in receiver_clients:
-                            try:
-                                r.sendall(data)
-                            except Exception:
-                                disconnected.append(r)
+                print_timed(f"[>] <{addr}: {key_str}")
+                with clients_lock:
+                    disconnected = []
+                    for r in receiver_clients:
+                        try:
+                            r.sendall(data)
+                        except Exception:
+                            disconnected.append(r)
 
-                        for r in disconnected:
-                            receiver_clients.remove(r)
+                    for r in disconnected:
+                        receiver_clients.remove(r)
 
     except Exception as e:
-        print(f"[!] <{addr}> Exception in client thread: {e}")
+        print_timed(f"[!] <{addr}> Exception in client thread: {e}")
     finally:
-        print(f"[x] <{addr}> Disconnected")
+        print_timed(f"[x] <{addr}> Disconnected")
         with clients_lock:
             if (
                 client_type == PROTOCOL_RESPONSE_RECEIVER
@@ -195,7 +186,7 @@ def run(args):
             )
             thread.start()
         except Exception as e:
-            print(f"Error while accepting new client: {e}")
+            print_timed(f"Error while accepting new client: {e}")
 
 
 def main():
