@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-import socket
-import argparse
 from pynput import keyboard
 from pynput.keyboard import Controller
+import socket
+import argparse
 import signal
 import sys
 import ssl
-import time
+import re
+from enum import Enum
 
 
 ASCII_ART = r"""
@@ -73,6 +74,8 @@ PROTOCOL_RESPONSE_OK = "OK"
 PROTOCOL_RESPONSE_NOT_OK = "NO NO!"
 PROTOCOL_RESPONSE_SENDER = "I'm a sender"
 PROTOCOL_RESPONSE_RECEIVER = "I'm a receiver"
+PROTOCOL_KEY_PRESSED = "<pressed>"
+PROTOCOL_KEY_RELEASED = "<released>"
 PROTOCOL_VALID_KEYS = [
     "Key.left",
     "Key.right",
@@ -93,6 +96,32 @@ CLIENT_MODE_TO_PROTOCOL_MAP = {
     CLIENT_MODE_SENDER: PROTOCOL_RESPONSE_SENDER,
     CLIENT_MODE_RECEIVER: PROTOCOL_RESPONSE_RECEIVER,
 }
+
+
+class KeyEventType(Enum):
+    PRESSED = 1
+    RELEASED = 2
+
+
+def protocol_message_to_key(msg: str) -> (str, KeyEventType):
+    key = re.match(f"{PROTOCOL_KEY_PRESSED} (.+)", msg)
+    if key:
+        return (key.group(1), KeyEventType.PRESSED)
+
+    key = re.match(f"{PROTOCOL_KEY_RELEASED} (.+)", msg)
+    if key:
+        return (key.group(1), KeyEventType.RELEASED)
+
+    raise Exception(f"Cannot determine key event from message '{msg}'")
+
+
+def key_event_to_protocol_message(key: str, event: KeyEventType) -> str:
+    if event == KeyEventType.PRESSED:
+        return f"{PROTOCOL_KEY_PRESSED} {key}"
+    elif event == KeyEventType.RELEASED:
+        return f"{PROTOCOL_KEY_RELEASED} {key}"
+    else:
+        raise Exception(f"Error: undefined KeyEventType '{event}'")
 
 
 def client_mode_to_protocol(client_mode: str) -> str:
@@ -116,14 +145,26 @@ def send_keys_to_server(args):
             k = str(key)  # special keys like Key.space
         if k in PROTOCOL_VALID_KEYS:
             try:
-                tls_socket.sendall(k.encode("utf-8"))
+                tls_socket.sendall(key_event_to_protocol_message(k, KeyEventType.PRESSED).encode("utf-8"))
+            except Exception:
+                print("Failed to send key. Server might be disconnected.")
+                return False
+
+    def on_release(key):
+        try:
+            k = key.char  # single-char keys
+        except AttributeError:
+            k = str(key)  # special keys like Key.space
+        if k in PROTOCOL_VALID_KEYS:
+            try:
+                tls_socket.sendall(key_event_to_protocol_message(k, KeyEventType.RELEASED).encode("utf-8"))
             except Exception:
                 print("Failed to send key. Server might be disconnected.")
                 return False
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         tls_socket = connect_and_authenticate(args, client_socket)
-        with keyboard.Listener(on_press=on_press) as listener:
+        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
             listener.join()  # Keep listening
 
 
@@ -139,12 +180,13 @@ def receive_keys_from_server(args):
             data = tls_socket.recv(1024)
             if not data:
                 break
-            key_str = data.decode("utf-8")
+            protocol_key_str = data.decode("utf-8")
+            key_str, event = protocol_message_to_key(protocol_key_str)
             if key_str in PROTOCOL_VALID_KEYS:
-                simulate_keypress(keyboard_controller, key_str)
+                simulate_keypress(keyboard_controller, key_str, event)
 
 
-def simulate_keypress(keyboard_controller, key_str):
+def simulate_keypress(keyboard_controller, key_str: str, event: KeyEventType):
     """Simulates a keypress based on the received string."""
     try:
         if key_str.startswith("Key."):
@@ -152,9 +194,13 @@ def simulate_keypress(keyboard_controller, key_str):
             key_obj = getattr(keyboard.Key, key_str.split(".")[1])
         else:
             key_obj = key_str  # regular characters
-        keyboard_controller.press(key_obj)
-        time.sleep(0.05)
-        keyboard_controller.release(key_obj)
+        if event == KeyEventType.PRESSED:
+            keyboard_controller.press(key_obj)
+        elif event == KeyEventType.RELEASED:
+            keyboard_controller.release(key_obj)
+        else:
+            raise Exception(f"Error: Cannot interpret KeyEventType '{event}'")
+
     except Exception as e:
         print(f"Error simulating keypress for '{key_str}': {e}")
 
