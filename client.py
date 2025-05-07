@@ -10,11 +10,11 @@ import ssl
 import time
 
 
-ASCII_ART = '''
-         ____             __          ___                        
+ASCII_ART = r"""
+         ____             __          ___
         / __/__ _______  / /  ___ ___/ (_)__ ___  __ _____  ___ _
        / _// -_) __/ _ \/ _ \/ -_) _  / / -_) _ \/ // / _ \/ _ `/
-      /_/  \__/_/ /_//_/_.__/\__/\_,_/_/\__/_//_/\_,_/_//_/\_, / 
+      /_/  \__/_/ /_//_/_.__/\__/\_,_/_/\__/_//_/\_,_/_//_/\_, /
                                                           /___/
 :-------------------------------------::--::::+=-----------------------:
 ::-::--------------------------------::::------=+:---------------------::
@@ -57,7 +57,7 @@ ASCII_ART = '''
 ::::::+---:-#%%%@@@@%#++++***=--====++++*+==+=+%@@@@@@##**#****@@@@%#+===
 ::::::=+:-:-*%##***##+---*++*+====+==++++*+===++#@@@@@%****#***@@@@@%++++
 =:::::-+==++==*####*-:---****+===========*+++=++=%@@@@@#*******@@@@%#++++
-'''
+"""
 
 
 # ---------- CONFIG ----------
@@ -78,15 +78,12 @@ PROTOCOL_VALID_KEYS = [
     "Key.right",
     "Key.up",
     "Key.down",
-
     "w",
     "a",
     "s",
     "d",
-
     "q",
     "e",
-
     "r",
     "f",
 ]
@@ -96,7 +93,6 @@ CLIENT_MODE_TO_PROTOCOL_MAP = {
     CLIENT_MODE_SENDER: PROTOCOL_RESPONSE_SENDER,
     CLIENT_MODE_RECEIVER: PROTOCOL_RESPONSE_RECEIVER,
 }
-
 
 
 def client_mode_to_protocol(client_mode: str) -> str:
@@ -164,7 +160,10 @@ def simulate_keypress(keyboard_controller, key_str):
 
 
 def connect_and_authenticate(args, socket):
-    print(f"[ ] Attempt TLS connection to {args.server_addr}:{args.server_port}.", end="\r")
+    print(
+        f"[ ] Attempt TLS connection to {args.server_addr}:{args.server_port}.",
+        end="\r",
+    )
     context = ssl.create_default_context()
     context.load_verify_locations(args.server_cert_file_path)
     wrapped_socket = context.wrap_socket(socket, server_hostname=args.server_addr)
@@ -186,28 +185,36 @@ def connect_and_authenticate(args, socket):
     return wrapped_socket
 
 
-
 def main():
-    parser = argparse.ArgumentParser(description="fernbedienung: TCP Key Event Sender/Receiver")
-    parser.add_argument(
-        "mode", choices=[CLIENT_MODE_SENDER, CLIENT_MODE_RECEIVER],
-        help=f"Mode: '{CLIENT_MODE_SENDER}' to send keypresses, '{CLIENT_MODE_RECEIVER}' to simulate received keypresses."
+    parser = argparse.ArgumentParser(
+        description="fernbedienung: TCP Key Event Sender/Receiver"
     )
     parser.add_argument(
-        "auth", type=str,
-        help="Auth: authenticate yourself against the server."
+        "mode",
+        choices=[CLIENT_MODE_SENDER, CLIENT_MODE_RECEIVER],
+        help=f"Mode: '{CLIENT_MODE_SENDER}' to send keypresses, \
+        '{CLIENT_MODE_RECEIVER}' to simulate received keypresses.",
     )
     parser.add_argument(
-        "--server-addr", type=str, default=DEFAULT_SERVER_IP,
-        help=f"Server IP address. Default is {DEFAULT_SERVER_IP}."
+        "auth", type=str, help="Auth: authenticate yourself against the server."
     )
     parser.add_argument(
-        "--server-port", type=int, default=DEFAULT_PORT,
-        help=f"Server port. Default is {DEFAULT_PORT}."
+        "--server-addr",
+        type=str,
+        default=DEFAULT_SERVER_IP,
+        help=f"Server IP address. Default is {DEFAULT_SERVER_IP}.",
     )
     parser.add_argument(
-        "--server-cert-file-path", type=str, default=DEFAULT_SERVER_CERT_FILE_PATH,
-        help=f"File path to the server TLS certificate. Default is {DEFAULT_SERVER_CERT_FILE_PATH}."
+        "--server-port",
+        type=int,
+        default=DEFAULT_PORT,
+        help=f"Server port. Default is {DEFAULT_PORT}.",
+    )
+    parser.add_argument(
+        "--server-cert-file-path",
+        type=str,
+        default=DEFAULT_SERVER_CERT_FILE_PATH,
+        help=f"File path to the server TLS certificate. Default is {DEFAULT_SERVER_CERT_FILE_PATH}.",
     )
     args = parser.parse_args()
 
@@ -229,4 +236,3 @@ def main():
 if __name__ == "__main__":
     main()
     exit(0)
-
