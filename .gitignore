@@ -2,3 +2,4 @@
 authorized_hosts
 *.crt
 *.key
+*package*

@@ -9,7 +9,7 @@ set MAIN_SCRIPT=client.py
 set REQUIREMENTS=requirements.txt
 
 REM === Download Python if not installed ===
-where python >nul 2>nul
+where py >nul 2>nul
 if %errorlevel% neq 0 (
     echo Python not found. Downloading...
     powershell -Command "Invoke-WebRequest -Uri %PYTHON_URL% -OutFile %PYTHON_INSTALLER%"
@@ -21,7 +21,7 @@ if %errorlevel% neq 0 (
 REM === Setup virtual environment ===
 if not exist %VENV_DIR%\Scripts\activate (
     echo Creating virtual environment...
-    python -m venv %VENV_DIR%
+    py -m venv %VENV_DIR%
 )
 
 REM === Activate venv and install dependencies ===
